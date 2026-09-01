@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>超低速スライドクイズ (テストモード: 1分〜30分)</title>
+  <title>超低速スライドクイズ</title>
+  
+  <!-- SNSシェア用（OGP）設定（必要に応じてURLや説明文を変更してください） -->
+  <meta property="og:title" content="超低速スライドクイズ">
+  <meta property="og:description" content="1日〜30日かけてゆっくりと流れる9つの謎。">
+  <meta property="og:type" content="website">
+
   <style>
     * {
       box-sizing: border-box;
@@ -12,24 +18,35 @@
     }
 
     body {
-      background-color: #1a1a1a;
-      color: #fff;
-      font-family: sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 24px 16px;
     }
 
-    /* 3×3 のグリッドコンテナ */
+    header {
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+
+    /* 3×3 のグリッド配置 */
     .grid-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 12px;
       width: 100%;
-      max-width: 600px;
+      max-width: 540px;
     }
 
     /* 各枠（正方形） */
@@ -37,34 +54,38 @@
       position: relative;
       width: 100%;
       aspect-ratio: 1 / 1;
-      background: #2a2a2a;
-      border: 2px solid #555;
+      background: #1e1e1e;
+      border: 1px solid #333;
       border-radius: 8px;
       overflow: hidden;
       display: flex;
       align-items: center;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-      container-type: inline-size; /* 枠の幅を基準にフォントサイズを計算 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.6);
+      container-type: inline-size; /* 枠の幅を基準に文字サイズを計算 */
+      user-select: none; /* テキスト選択を防ぎ謎解きの雰囲気を維持 */
     }
 
     /* 枠番号バッジ */
     .window-label {
       position: absolute;
-      top: 4px;
-      left: 6px;
-      font-size: 11px;
-      color: #888;
+      top: 6px;
+      left: 8px;
+      font-size: 10px;
+      font-weight: bold;
+      color: #666;
       z-index: 10;
+      pointer-events: none;
     }
 
-    /* スライドする中身 */
+    /* スライドするテキスト・画像コンテナ */
     .track {
       display: inline-flex;
       white-space: nowrap;
       position: absolute;
       left: 0;
-      /* ★ 枠幅に対して少し控えめ（28cqw）にし、さらに -2px 調整 */
-      font-size: calc30cqw; 
+      font-size: calc30cqw;
+      font-weight: 500;
+      letter-spacing: 0.05em;
       will-change: transform;
     }
 
@@ -72,42 +93,90 @@
       height: 60%;
       width: auto;
       display: block;
+      pointer-events: none;
+    }
+
+    /* 解答フォームへの誘導リンク（他媒体へのリンク） */
+    footer {
+      margin-top: 32px;
+      text-align: center;
+    }
+
+    .answer-btn {
+      display: inline-block;
+      padding: 10px 24px;
+      background: #2a2a2a;
+      color: #aaa;
+      text-decoration: none;
+      font-size: 13px;
+      border: 1px solid #444;
+      border-radius: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .answer-btn:hover {
+      background: #333;
+      color: #fff;
+      border-color: #666;
     }
   </style>
 </head>
 <body>
 
-  <div class="grid-container" id="grid"></div>
+  <header>
+    <h1>SLIDE QUIZ</h1>
+  </header>
+
+  <main class="grid-container" id="grid"></main>
+
+  <footer>
+    <!-- 外部の解答フォーム（GoogleフォームやXなど）のURLを設定してください -->
+    <a href="https://docs.google.com/forms/" target="_blank" rel="noopener noreferrer" class="answer-btn">
+      解答送信フォームはこちら ↗
+    </a>
+  </footer>
 
   <script>
-    // 基準日時
-    const BASE_TIME = new Date('2026-09-01T10:00:00+09:00').getTime();
+    // ========================================================
+    // 1. 公開設定
+    // ========================================================
 
-    // 9問分のデータ設定（分単位）
+    // 【重要】公開開始日時（この日時をスタート位置として全ユーザーで同期されます）
+    // 形式: 'YYYY-MM-DDTHH:mm:ss+09:00'
+    const BASE_TIME = new Date('2026-09-01T00:00:00+09:00').getTime();
+
+    // 9問分のデータ設定（days: スライドが1周する日数）
+    // ※ content には文章、または '<img src="images/q1.png">' などの画像タグも使用可能です
     const quizData = [
-      { id: 1, minutes: 1,  content: "太陽系で最も大きい惑星はなんでしょうか？正解を入力してください。" },
-      { id: 2, minutes: 2,  content: "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。" },
-      { id: 3, minutes: 3,  content: "春はあけぼの。やうやう白くなりゆく山ぎは、少しあかりて、紫だちたる雲の。" },
-      { id: 4, minutes: 5,  content: "パンはパンでも食べられないパンはなーんだ？フライパンかな？ピーターパン？" },
-      { id: 5, minutes: 7,  content: "国境の長いトンネルを抜けると雪国であった。夜の底が白くなった。" },
-      { id: 6, minutes: 10, content: "寿限無、寿限無、五劫の擦り切れ、海砂利水魚の水行末、雲来末、風来末。" },
-      { id: 7, minutes: 15, content: "祇園精舎の鐘の声、諸行無常の響きあり。娑羅双樹の花の色、盛者必衰の理をあらはす。" },
-      { id: 8, minutes: 20, content: "走れメロス。メロスは激怒した。必ず、かの邪智暴虐の王を除かなければならぬと決意した。" },
-      { id: 9, minutes: 30, content: "時は金なり。少年老い易く学成り難し。一寸の光陰軽んずべからず。" }
+      { id: 1, days: 1,  content: "太陽系で最も大きい惑星はなんでしょうか？正解を入力してください。" },
+      { id: 2, days: 2,  content: "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。" },
+      { id: 3, days: 3,  content: "春はあけぼの。やうやう白くなりゆく山ぎは、少しあかりて、紫だちたる雲の。" },
+      { id: 4, days: 5,  content: "パンはパンでも食べられないパンはなーんだ？フライパンかな？ピーターパン？" },
+      { id: 5, days: 7,  content: "国境の長いトンネルを抜けると雪国であった。夜の底が白くなった。" },
+      { id: 6, days: 10, content: "寿限無、寿限無、五劫の擦り切れ、海砂利水魚の水行末、雲来末、風来末。" },
+      { id: 7, days: 14, content: "祇園精舎の鐘の声、諸行無常の響きあり。娑羅双樹の花の色、盛者必衰の理をあらはす。" },
+      { id: 8, days: 21, content: "走れメロス。メロスは激怒した。必ず、かの邪智暴虐の王を除かなければならぬと決意した。" },
+      { id: 9, days: 30, content: "時は金なり。少年老い易く学成り難し。一寸の光陰軽んずべからず。" }
     ];
 
+    // ========================================================
+    // 2. 枠と要素の動的生成
+    // ========================================================
     const gridEl = document.getElementById('grid');
 
     quizData.forEach((q, index) => {
       const win = document.createElement('div');
       win.className = 'quiz-window';
       win.innerHTML = `
-        <span class="window-label">Q${q.id} (${q.minutes}分周期)</span>
+        <span class="window-label">Q${q.id}</span>
         <div class="track" id="track-${index}">${q.content}</div>
       `;
       gridEl.appendChild(win);
     });
 
+    // ========================================================
+    // 3. スライド計算 & 同期処理
+    // ========================================================
     const trackEls = quizData.map((_, i) => document.getElementById(`track-${i}`));
 
     function updatePositions() {
@@ -115,8 +184,10 @@
       const elapsed = now - BASE_TIME;
 
       quizData.forEach((q, i) => {
-        const periodMs = q.minutes * 60 * 1000;
+        // 周期をミリ秒単位に変換（日数 × 24時間 × 60分 × 60秒 × 1000ミリ秒）
+        const periodMs = q.days * 24 * 60 * 60 * 1000;
         
+        // 進行度（0.0 〜 1.0）
         let progress = (elapsed % periodMs) / periodMs;
         if (progress < 0) progress += 1;
 
@@ -125,14 +196,19 @@
         const contentWidth = track.scrollWidth;
         const totalDistance = contentWidth + windowWidth;
 
+        // 右端から入場して左端へ抜ける位置計算
         const currentX = windowWidth - (progress * totalDistance);
         track.style.transform = `translateX(${currentX}px)`;
       });
     }
 
+    // 初回描画
     updatePositions();
-    setInterval(updatePositions, 50);
 
+    // 100ミリ秒ごとに位置を更新
+    setInterval(updatePositions, 100);
+
+    // 画面サイズ変更時にも再計算
     window.addEventListener('resize', updatePositions);
   </script>
 </body>
